@@ -1,0 +1,17 @@
+perpus_sede/
+│
+├── config.php                 
+├── index.php                  
+├── dashboard.php              
+├── logout.php                 
+│
+├── admin/                     
+│   ├── admin_buku.php         
+│   ├── admin_user.php         
+│   └── admin_kategori.php     
+│
+├── shared/                    
+│   ├── pinjam_buku.php        
+│   └── daftar_buku.php        
+│
+└── database.sql               
