@@ -684,8 +684,7 @@ include '../header.php';
                             ?>
                                 <img src="../uploads/buku/<?= $p['gambar'] ?>" class="cover-thumbnail" alt="Cover <?= htmlspecialchars($p['judul']) ?>">
                             <?php else: ?>
-                                <div class="cover-placeholder">
-                                    📚
+                                <img src="../assets/img/no-cover.png" class="gambar-thumbnail" alt="No Cover" style="width: 50px; height: 60px; object-fit: cover; background: #f0f0f0;">
                                 </div>
                             <?php endif; ?>
                         </td>
@@ -921,7 +920,7 @@ include '../header.php';
                 title: 'Konfirmasi Pengembalian Massal',
                 html: `Apakah Anda yakin ingin mengembalikan <strong>${checkedCount}</strong> buku berikut?<br><br>
                        <div style="max-height:200px; overflow-y:auto; text-align:left; padding:10px; background:#f8f9fa; border-radius:8px;">
-                       ${selectedRows.map(judul => `📖 ${judul}`).join('<br>')}
+                       ${selectedRows.map(judul => `${judul}`).join('<br>')}
                        </div>`,
                 icon: 'question',
                 showCancelButton: true,
