@@ -5,7 +5,7 @@ if (!isLoggedIn()) {
     redirect('../index.php');
 }
 
-$page_title = "Kelola Daftar Buku";
+$page_title = "Daftar Buku";
 
 // Handle peminjaman
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pinjam'])) {
@@ -43,11 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pinjam'])) {
                 $stmt = $pdo->prepare("INSERT INTO peminjaman (user_id, buku_id, tanggal_pinjam, status) VALUES (?, ?, ?, 'dipinjam')");
                 $stmt->execute([$user_id, $buku_id, $tanggal_pinjam]);
                 $pdo->commit();
-                // Simpan dalam bentuk JSON untuk menghindari masalah karakter
-                $_SESSION['swal_success'] = json_encode([
-                    'message' => "Buku '{$buku['judul']}' berhasil dipinjam!",
-                    'judul' => $buku['judul']
-                ]);
+                $_SESSION['swal_success'] = "Buku '{$buku['judul']}' berhasil dipinjam!";
             } else {
                 $pdo->rollBack();
                 $_SESSION['swal_error'] = "Stok buku habis!";
@@ -63,21 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pinjam'])) {
     redirect('daftar_buku.php');
 }
 
-// Ambil dan decode session messages
-$swal_success_raw = isset($_SESSION['swal_success']) ? $_SESSION['swal_success'] : '';
+// Ambil session messages
+$swal_success = isset($_SESSION['swal_success']) ? $_SESSION['swal_success'] : '';
 $swal_error = isset($_SESSION['swal_error']) ? $_SESSION['swal_error'] : '';
-
-// Coba decode jika berupa JSON
-$swal_success = '';
-if ($swal_success_raw) {
-    $decoded = json_decode($swal_success_raw, true);
-    if (json_last_error() === JSON_ERROR_NONE && isset($decoded['message'])) {
-        $swal_success = $decoded['message'];
-    } else {
-        $swal_success = $swal_success_raw;
-    }
-}
-
 unset($_SESSION['swal_success']);
 unset($_SESSION['swal_error']);
 
@@ -88,6 +72,9 @@ $kategori_filter = isset($_GET['kategori']) ? $_GET['kategori'] : '';
 $limit = 5;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
+
+// Buat folder upload path untuk cek file gambar
+$upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/perpus_sede/uploads/buku/';
 
 // Query untuk menghitung total data
 $count_sql = "SELECT COUNT(*) as total 
@@ -136,23 +123,24 @@ if (!empty($kategori_filter)) {
 }
 
 // Urutkan berdasarkan judul secara abjad A-Z
-$sql .= " ORDER BY b.judul ASC LIMIT :limit OFFSET :offset";
+$sql .= " ORDER BY b.judul ASC LIMIT ? OFFSET ?";
 
 $stmt = $pdo->prepare($sql);
 
-// Bind parameter pencarian
-foreach ($params as $key => $value) {
-    $stmt->bindValue($key + 1, $value);
+// Bind parameter pencarian dan pagination (semua menggunakan positional parameter)
+$param_index = 1;
+foreach ($params as $value) {
+    $stmt->bindValue($param_index++, $value);
 }
-$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->bindValue($param_index++, $limit, PDO::PARAM_INT);
+$stmt->bindValue($param_index++, $offset, PDO::PARAM_INT);
 $stmt->execute();
 $buku = $stmt->fetchAll();
 
 $kategori_list = $pdo->query("SELECT * FROM kategori ORDER BY nama_kategori")->fetchAll();
 
 $stmt = $pdo->prepare("
-    SELECT p.*, b.judul, b.penulis, b.penerbit 
+    SELECT p.*, b.judul, b.penulis, b.penerbit, b.id as buku_id
     FROM peminjaman p 
     JOIN buku b ON p.buku_id = b.id 
     WHERE p.user_id = ? AND p.status = 'dipinjam'
@@ -175,10 +163,10 @@ include '../header.php';
     .btn {
         display: inline-block;
         padding: 8px 16px;
-        background: #333;
-        color: white;
+        background: #E1E8ED;
+        color: black;
         text-decoration: none;
-        border-radius: 6px;
+        border-radius: 4px;
         border: none;
         cursor: pointer;
         font-size: 14px;
@@ -186,16 +174,22 @@ include '../header.php';
     }
 
     .btn:hover {
-        opacity: 0.85;
-        transform: translateY(-1px);
+        background: #66757F;
+        color: white;
     }
 
     .btn-pinjam {
         background: #4d88ff;
+        color: white;
+    }
+
+    .btn-pinjam:hover {
+        background: #3366cc;
     }
 
     .btn-success {
         background: #28a745;
+        color: white;
     }
 
     .btn-success:hover {
@@ -205,6 +199,12 @@ include '../header.php';
     .btn-disabled {
         background: #6c757d;
         cursor: not-allowed;
+        color: white;
+    }
+
+    .btn-disabled:hover {
+        background: #6c757d;
+        transform: none;
     }
 
     .btn-sm {
@@ -212,62 +212,123 @@ include '../header.php';
         font-size: 12px;
     }
 
-    .search-container {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .search-form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: flex-end;
-    }
-
-    .search-group {
-        flex: 1;
-        min-width: 200px;
-    }
-
-    .search-group label {
-        display: block;
-        margin-bottom: 5px;
-        color: #555;
-        font-size: 13px;
-    }
-
-    .search-group input,
-    .search-group select {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-
-    .btn-search {
+    .btn-cari {
         background: #333;
+        color: white;
+    }
+
+    .btn-cari:hover {
+        background: #555;
     }
 
     .btn-reset {
         background: #6c757d;
+        color: white;
     }
 
-    .search-info {
-        margin-top: 15px;
-        padding: 10px;
-        background: #f8f9fa;
+    .btn-reset:hover {
+        background: #5a6268;
+    }
+
+    /* Cover Image Styles */
+    .gambar-thumbnail {
+        width: 50px;
+        height: 60px;
+        object-fit: cover;
         border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    .gambar-thumbnail-pinjam {
+        width: 40px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    /* Statistics Grid Styles */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    .stat-label {
+        color: #666;
+        margin-top: 8px;
         font-size: 13px;
     }
 
+    /* Filter Container Styles */
+    .filter-container {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #555;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #2c3e50;
+    }
+
+    /* Table Styles */
     table {
         width: 100%;
         background: white;
         border-radius: 8px;
         overflow: hidden;
-        margin-bottom: 20px;
+        border-collapse: collapse;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     th,
@@ -279,6 +340,12 @@ include '../header.php';
 
     th {
         background: #f8f8f8;
+        font-weight: 600;
+        color: #555;
+    }
+
+    tr:hover {
+        background: #f9f9f9;
     }
 
     .badge {
@@ -293,66 +360,94 @@ include '../header.php';
         color: #d35400;
     }
 
-    .stats {
-        background: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
     .empty-state {
         text-align: center;
-        padding: 40px;
+        padding: 60px;
         background: white;
-        border-radius: 8px;
+        border-radius: 12px;
         color: #666;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    /* Pagination styles */
+    /* Pagination Styles */
     .pagination {
         display: flex;
         justify-content: center;
-        margin-top: 20px;
-        gap: 5px;
+        align-items: center;
+        gap: 8px;
+        margin-top: 30px;
+        flex-wrap: wrap;
     }
 
     .pagination a,
     .pagination span {
-        padding: 8px 16px;
-        text-decoration: none;
-        border: 1px solid #ddd;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        background: white;
         color: #333;
-        border-radius: 4px;
-        transition: background-color 0.3s;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s;
+        border: 1px solid #ddd;
     }
 
     .pagination a:hover {
-        background-color: #E1E8ED;
+        background: #2c3e50;
+        color: white;
+        border-color: #2c3e50;
     }
 
     .pagination .active {
-        background-color: #4d88ff;
+        background: #2c3e50;
         color: white;
-        border: 1px solid #4d88ff;
+        border-color: #2c3e50;
     }
 
     .pagination .disabled {
-        color: #999;
+        opacity: 0.5;
         cursor: not-allowed;
     }
 
     .info-pagination {
         text-align: center;
-        margin-top: 10px;
+        margin-top: 15px;
         color: #666;
-        font-size: 14px;
+        font-size: 13px;
     }
 
+    .text-center {
+        text-align: center;
+    }
+
+    .borrowed-books-section {
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        margin-bottom: 15px;
+        color: #333;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    /* Responsive Styles */
     @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .filter-container {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
 
         table,
         thead,
@@ -376,127 +471,155 @@ include '../header.php';
         td {
             display: flex;
             justify-content: space-between;
-            padding: 10px;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
         }
 
         td:before {
             content: attr(data-label);
             font-weight: bold;
             margin-right: 10px;
+            min-width: 100px;
         }
 
-        .search-form {
-            flex-direction: column;
+        td:last-child {
+            border-bottom: none;
         }
 
-        .search-group {
-            width: 100%;
-        }
-
-        .stats {
-            flex-direction: column;
-            text-align: center;
-        }
-
-        .pagination {
-            flex-wrap: wrap;
+        .pagination a,
+        .pagination span {
+            min-width: 32px;
+            height: 32px;
+            font-size: 12px;
         }
     }
 </style>
 
-<?php if (!empty($pinjaman_aktif)): ?>
-    <div class="stats">
-        <p>Anda sedang meminjam <strong><?= count($pinjaman_aktif) ?></strong> buku</p>
-        <p>Jangan lupa mengembalikan tepat waktu!</p>
+<!-- Statistics Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number"><?= count($pinjaman_aktif) ?></div>
+        <div class="stat-label">Buku Sedang Dipinjam</div>
     </div>
-    <h3>Buku yang Sedang Anda Pinjam</h3>
-    <div style="overflow-x: auto;">
-        <table>
-            <thead>
-                <tr>
-                    <th style="text-align: center;">No</th>
-                    <th style="text-align: center;">Judul</th>
-                    <th style="text-align: center;">Penulis</th>
-                    <th style="text-align: center;">Tanggal Pinjam</th>
-                    <th style="text-align: center;">Status</th>
-                    <th style="text-align: center;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $no_pinjam = 1; ?>
-                <?php foreach ($pinjaman_aktif as $p): ?>
-                    <tr id="pinjam-row-<?= $p['id'] ?>">
-                        <td data-label="No" style="text-align: center;"><?= $no_pinjam++ ?></td>
-                        <td data-label="Judul"><?= htmlspecialchars($p['judul']) ?></td>
-                        <td data-label="Penulis"><?= htmlspecialchars($p['penulis']) ?></td>
-                        <td data-label="Tanggal Pinjam" style="text-align: center;"><?= date('d/m/Y', strtotime($p['tanggal_pinjam'])) ?></td>
-                        <td data-label="Status" style="text-align: center;"><span class="badge badge-dipinjam">Dipinjam</span></td>
-                        <td data-label="Aksi" style="text-align: center;">
-                            <button class="btn btn-success btn-sm return-book"
-                                data-id="<?= $p['id'] ?>"
-                                data-judul="<?= htmlspecialchars($p['judul'], ENT_QUOTES, 'UTF-8') ?>">
-                                Kembalikan
-                            </button>
-                        </td>
+    <div class="stat-card">
+        <div class="stat-number"><?= $total_rows ?></div>
+        <div class="stat-label">Buku Tersedia</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number"><?= count($kategori_list) ?></div>
+        <div class="stat-label">Total Kategori</div>
+    </div>
+</div>
+
+<!-- Active Loans Section -->
+<?php if (!empty($pinjaman_aktif)): ?>
+    <div class="borrowed-books-section">
+        <div class="section-title">Buku yang Sedang Anda Pinjam</div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-center">No</th>
+                        <th class="text-center">Cover</th>
+                        <th>Judul</th>
+                        <th>Penulis</th>
+                        <th class="text-center">Tanggal Pinjam</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Aksi</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php $no_pinjam = 1; ?>
+                    <?php foreach ($pinjaman_aktif as $p): 
+                        // Ambil gambar buku
+                        $stmt_gambar = $pdo->prepare("SELECT gambar FROM buku WHERE id = ?");
+                        $stmt_gambar->execute([$p['buku_id']]);
+                        $gambar_buku = $stmt_gambar->fetch();
+                    ?>
+                        <tr id="pinjam-row-<?= $p['id'] ?>">
+                            <td class="text-center" data-label="No"><?= $no_pinjam++ ?></td>
+                            <td class="text-center" data-label="Cover">
+                                <?php if (!empty($gambar_buku['gambar']) && file_exists($upload_dir . $gambar_buku['gambar'])): ?>
+                                    <img src="../uploads/buku/<?= $gambar_buku['gambar'] ?>" class="gambar-thumbnail-pinjam" alt="Cover">
+                                <?php else: ?>
+                                    <img src="../assets/img/no-cover.png" class="gambar-thumbnail-pinjam" alt="No Cover" style="background: #f0f0f0;">
+                                <?php endif; ?>
+                            </td>
+                            <td data-label="Judul"><?= htmlspecialchars($p['judul']) ?></td>
+                            <td data-label="Penulis"><?= htmlspecialchars($p['penulis']) ?></td>
+                            <td class="text-center" data-label="Tanggal Pinjam"><?= date('d/m/Y', strtotime($p['tanggal_pinjam'])) ?></td>
+                            <td class="text-center" data-label="Status">
+                                <span class="badge badge-dipinjam">Dipinjam</span>
+                            </td>
+                            <td class="text-center" data-label="Aksi">
+                                <button class="btn btn-success btn-sm return-book"
+                                    data-id="<?= $p['id'] ?>"
+                                    data-judul="<?= htmlspecialchars($p['judul'], ENT_QUOTES, 'UTF-8') ?>">
+                                    Kembalikan
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 <?php else: ?>
-    <div class="stats">
+    <div class="stats" style="background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <p>Anda sedang tidak meminjam buku apapun</p>
-        <p>Silakan pinjam buku di bawah</p>
+        <p style="margin-top: 5px; color: #666;">Silakan pinjam buku di bawah</p>
     </div>
 <?php endif; ?>
 
-<h3>Daftar Buku Tersedia</h3>
-<div class="search-container">
-    <form method="GET" class="search-form" id="searchForm">
-        <div class="search-group">
-            <label>Filter Kategori</label>
-            <select name="kategori">
-                <option value="">Semua Kategori</option>
-                <?php foreach ($kategori_list as $k): ?>
-                    <option value="<?= $k['id'] ?>" <?= $kategori_filter == $k['id'] ? 'selected' : '' ?>><?= htmlspecialchars($k['nama_kategori']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="search-group">
-            <label>Cari Buku</label>
-            <input type="text" name="search" placeholder="Judul, penulis, atau penerbit..." value="<?= htmlspecialchars($search) ?>">
-        </div>
-        <div class="search-group">
-            <label>&nbsp;</label>
-            <button type="submit" class="btn btn-search">Cari</button>
-        </div>
-        <div class="search-group">
-            <label>&nbsp;</label>
-            <a href="daftar_buku.php" class="btn btn-reset">Reset</a>
-        </div>
-    </form>
-    <?php if (!empty($search) || !empty($kategori_filter)): ?>
-        <div class="search-info">Menampilkan <strong><?= count($buku) ?></strong> hasil <a href="daftar_buku.php" style="float:right;">Hapus filter</a></div>
-    <?php endif; ?>
+<!-- Filter Container -->
+<div class="filter-container">
+    <div class="filter-group">
+        <label>Filter Kategori</label>
+        <select id="kategoriFilter">
+            <option value="">Semua Kategori</option>
+            <?php foreach ($kategori_list as $k): ?>
+                <option value="<?= $k['id'] ?>" <?= $kategori_filter == $k['id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($k['nama_kategori']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Cari Buku</label>
+        <form method="GET" id="searchForm" style="display: flex; gap: 10px;">
+            <input type="hidden" name="page" value="1">
+            <input type="text" name="search" placeholder="Cari judul, penulis, atau penerbit..." 
+                   value="<?= htmlspecialchars($search) ?>" style="flex: 1;">
+            <button type="submit" class="btn btn-cari btn-sm">Cari</button>
+            <?php if(!empty($search) || !empty($kategori_filter)): ?>
+                <a href="daftar_buku.php" class="btn btn-reset btn-sm">Reset</a>
+            <?php endif; ?>
+        </form>
+    </div>
 </div>
 
+<!-- Books List -->
 <?php if (empty($buku)): ?>
     <div class="empty-state">
         <p>Tidak ada buku ditemukan.</p>
-        <a href="daftar_buku.php" class="btn">Lihat Semua Buku</a>
+        <?php if(!empty($search) || !empty($kategori_filter)): ?>
+            <a href="daftar_buku.php" class="btn btn-cari" style="margin-top: 15px;">Lihat Semua Buku</a>
+        <?php endif; ?>
     </div>
 <?php else: ?>
     <div style="overflow-x: auto;">
         <table>
             <thead>
                 <tr>
-                    <th style="text-align: center;">No</th>
-                    <th style="text-align: center;">Judul</th>
-                    <th style="text-align: center;">Penulis</th>
-                    <th style="text-align: center;">Penerbit</th>
-                    <th style="text-align: center;">Kategori</th>
-                    <th style="text-align: center;">Stok</th>
-                    <th style="text-align: center;">Aksi</th>
+                    <th class="text-center">No</th>
+                    <th class="text-center">Cover</th>
+                    <th>Judul</th>
+                    <th>Penulis</th>
+                    <th>Penerbit</th>
+                    <th>Kategori</th>
+                    <th class="text-center">Stok</th>
+                    <th class="text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -505,17 +628,28 @@ include '../header.php';
                 foreach ($buku as $index => $b):
                 ?>
                     <tr id="buku-row-<?= $b['id'] ?>">
-                        <td data-label="No" style="text-align: center;"><?= $start_number + $index ?></td>
+                        <td class="text-center" data-label="No"><?= $start_number + $index ?></td>
+                        <td class="text-center" data-label="Cover">
+                            <?php if (!empty($b['gambar']) && file_exists($upload_dir . $b['gambar'])): ?>
+                                <img src="../uploads/buku/<?= $b['gambar'] ?>" class="gambar-thumbnail" alt="Cover">
+                            <?php else: ?>
+                                <img src="../assets/img/no-cover.png" class="gambar-thumbnail" alt="No Cover" style="background: #f0f0f0;">
+                            <?php endif; ?>
+                        </td>
                         <td data-label="Judul"><?= htmlspecialchars($b['judul']) ?></td>
                         <td data-label="Penulis"><?= htmlspecialchars($b['penulis']) ?></td>
                         <td data-label="Penerbit"><?= htmlspecialchars($b['penerbit'] ?? '-') ?></td>
                         <td data-label="Kategori"><?= htmlspecialchars($b['nama_kategori'] ?? '-') ?></td>
-                        <td data-label="Stok" style="text-align: center;"><?= $b['stok'] ?></td>
-                        <td data-label="Aksi" style="text-align: center;">
+                        <td class="text-center" data-label="Stok">
+                            <span style="font-weight: bold; color: <?= $b['stok'] <= 3 ? '#dc3545' : '#28a745' ?>;">
+                                <?= $b['stok'] ?>
+                            </span>
+                        </td>
+                        <td class="text-center" data-label="Aksi">
                             <?php if (in_array($b['id'], $borrowed_ids)): ?>
-                                <span class="btn btn-disabled">Sudah Dipinjam</span>
+                                <span class="btn btn-disabled btn-sm">Sudah Dipinjam</span>
                             <?php else: ?>
-                                <button class="btn btn-pinjam borrow-book"
+                                <button class="btn btn-pinjam btn-sm borrow-book"
                                     data-id="<?= $b['id'] ?>"
                                     data-judul="<?= htmlspecialchars($b['judul'], ENT_QUOTES, 'UTF-8') ?>">
                                     Pinjam
@@ -540,13 +674,26 @@ include '../header.php';
                 <span class="disabled">&laquo; Sebelumnya</span>
             <?php endif; ?>
 
-            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+            <?php
+            $start_page = max(1, $page - 2);
+            $end_page = min($total_pages, $page + 2);
+            
+            if ($start_page > 1) {
+                echo '<span>...</span>';
+            }
+            
+            for ($i = $start_page; $i <= $end_page; $i++):
+            ?>
                 <?php if ($i == $page): ?>
                     <span class="active"><?= $i ?></span>
                 <?php else: ?>
                     <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&kategori=<?= urlencode($kategori_filter) ?>"><?= $i ?></a>
                 <?php endif; ?>
             <?php endfor; ?>
+            
+            <?php if ($end_page < $total_pages): ?>
+                <span>...</span>
+            <?php endif; ?>
 
             <?php if ($page < $total_pages): ?>
                 <a href="?page=<?= $page + 1 ?>&search=<?= urlencode($search) ?>&kategori=<?= urlencode($kategori_filter) ?>">Selanjutnya &raquo;</a>
@@ -557,46 +704,40 @@ include '../header.php';
     <?php endif; ?>
 <?php endif; ?>
 
-<!-- Form untuk peminjaman (hidden) -->
+<!-- Hidden Forms -->
 <form id="borrowForm" method="POST" style="display: none;">
     <input type="hidden" name="buku_id" id="borrow_buku_id">
     <input type="hidden" name="pinjam" value="1">
 </form>
 
-<!-- SweetAlert2 Scripts untuk notifikasi dengan posisi top -->
+<!-- SweetAlert2 Scripts -->
 <?php if ($swal_success): ?>
-    <script>
-        // Gunakan json_encode untuk escape karakter khusus
-        const successMessage = <?= json_encode($swal_success) ?>;
-        Swal.fire({
-            position: 'top', // Notifikasi sukses di tengah atas
-            icon: "success",
-            title: "Berhasil!",
-            text: successMessage,
-            showConfirmButton: false,
-            timer: 1500,
-            toast: false
-        });
-    </script>
+<script>
+    Swal.fire({
+        position: "top-end",
+        icon: "success",
+        title: "Berhasil!",
+        text: <?= json_encode($swal_success) ?>,
+        showConfirmButton: false,
+        timer: 1500,
+        toast: true
+    });
+</script>
 <?php endif; ?>
 
 <?php if ($swal_error): ?>
-    <script>
-        const errorMessage = <?= json_encode($swal_error) ?>;
-        Swal.fire({
-            position: 'top', // Notifikasi error di tengah atas
-            icon: "error",
-            title: "Gagal!",
-            text: errorMessage,
-            showConfirmButton: true,
-            confirmButtonColor: "#dc3545",
-            confirmButtonText: "OK"
-        });
-    </script>
+<script>
+    Swal.fire({
+        icon: "error",
+        title: "Gagal!",
+        text: <?= json_encode($swal_error) ?>,
+        confirmButtonColor: "#dc3545"
+    });
+</script>
 <?php endif; ?>
 
 <script>
-    // Fungsi untuk escape HTML
+    // Escape HTML function
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -604,7 +745,26 @@ include '../header.php';
         return div.innerHTML;
     }
 
-    // Konfirmasi peminjaman buku dengan SweetAlert2 (DI TENGAH)
+    // Apply filters when category changes
+    const kategoriFilter = document.getElementById('kategoriFilter');
+    if (kategoriFilter) {
+        kategoriFilter.addEventListener('change', function() {
+            const kategori = this.value;
+            const search = document.querySelector('input[name="search"]').value;
+            let url = 'daftar_buku.php?page=1';
+            
+            if (kategori) {
+                url += '&kategori=' + encodeURIComponent(kategori);
+            }
+            if (search) {
+                url += '&search=' + encodeURIComponent(search);
+            }
+            
+            window.location.href = url;
+        });
+    }
+
+    // Konfirmasi peminjaman buku dengan SweetAlert2
     document.querySelectorAll('.borrow-book').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
@@ -614,29 +774,24 @@ include '../header.php';
             Swal.fire({
                 title: 'Konfirmasi Peminjaman',
                 html: `Apakah Anda yakin ingin meminjam buku <strong>"${escapeHtml(judul)}"</strong>?<br><br>
-                       <small style="color:#666;">Lama pinjam maksimal 7 hari<br>
-                       </small>`,
+                       <small style="color:#666;">Lama pinjam maksimal 7 hari</small>`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#4d88ff',
                 cancelButtonColor: '#dc3545',
                 confirmButtonText: 'Ya, Pinjam!',
-                cancelButtonText: 'Batal',
-                position: 'center' // Konfirmasi DI TENGAH LAYAR
+                cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Tampilkan loading DI TENGAH
                     Swal.fire({
                         title: 'Memproses...',
                         text: 'Sedang memproses peminjaman buku',
                         allowOutsideClick: false,
-                        position: 'center',
                         didOpen: () => {
                             Swal.showLoading();
                         }
                     });
 
-                    // Submit form
                     document.getElementById('borrow_buku_id').value = bukuId;
                     document.getElementById('borrowForm').submit();
                 }
@@ -644,14 +799,12 @@ include '../header.php';
         });
     });
 
-    // Konfirmasi pengembalian buku dengan SweetAlert2 menggunakan AJAX (DI TENGAH)
+    // Konfirmasi pengembalian buku dengan SweetAlert2 menggunakan AJAX
     document.querySelectorAll('.return-book').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             const peminjamanId = this.dataset.id;
             const judul = this.dataset.judul;
-            const buttonElement = this;
-            const rowElement = this.closest('tr');
 
             Swal.fire({
                 title: 'Konfirmasi Pengembalian',
@@ -661,77 +814,75 @@ include '../header.php';
                 confirmButtonColor: '#28a745',
                 cancelButtonColor: '#dc3545',
                 confirmButtonText: 'Ya, Kembalikan!',
-                cancelButtonText: 'Batal',
-                position: 'center' // Konfirmasi DI TENGAH LAYAR
+                cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Tampilkan loading DI TENGAH
                     Swal.fire({
                         title: 'Memproses...',
                         text: 'Sedang memproses pengembalian buku',
                         allowOutsideClick: false,
-                        position: 'center',
                         didOpen: () => {
                             Swal.showLoading();
                         }
                     });
 
-                    // Kirim request AJAX ke kembalikan_buku.php
                     fetch('../shared/kembalikan_buku.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                'X-Requested-With': 'XMLHttpRequest'
-                            },
-                            body: `peminjaman_id=${peminjamanId}`
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Tutup loading
-                                Swal.close();
-                                // Tampilkan notifikasi sukses DI TENGAH ATAS
-                                Swal.fire({
-                                    position: 'top', // Notifikasi sukses di tengah atas
-                                    icon: "success",
-                                    title: "Berhasil!",
-                                    text: data.message,
-                                    showConfirmButton: false,
-                                    timer: 2000
-                                }).then(() => {
-                                    // Reload halaman untuk memperbarui data
-                                    location.reload();
-                                });
-                            } else {
-                                // Tutup loading
-                                Swal.close();
-                                // Tampilkan notifikasi error DI TENGAH ATAS
-                                Swal.fire({
-                                    position: 'top', // Notifikasi error di tengah atas
-                                    icon: "error",
-                                    title: "Gagal!",
-                                    text: data.message,
-                                    confirmButtonColor: "#dc3545",
-                                    confirmButtonText: "OK"
-                                });
-                            }
-                        })
-                        .catch(error => {
-                            Swal.close();
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: `peminjaman_id=${peminjamanId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.close();
+                        if (data.success) {
                             Swal.fire({
-                                position: 'top', // Notifikasi error di tengah atas
-                                icon: "error",
-                                title: "Error!",
-                                text: "Terjadi kesalahan saat menghubungi server.",
-                                confirmButtonColor: "#dc3545",
-                                confirmButtonText: "OK"
+                                position: "top-end",
+                                icon: "success",
+                                title: "Berhasil!",
+                                text: data.message,
+                                showConfirmButton: false,
+                                timer: 1500,
+                                toast: true
+                            }).then(() => {
+                                location.reload();
                             });
-                            console.error('Error:', error);
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Gagal!",
+                                text: data.message,
+                                confirmButtonColor: "#dc3545"
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.close();
+                        Swal.fire({
+                            icon: "error",
+                            title: "Error!",
+                            text: "Terjadi kesalahan saat menghubungi server.",
+                            confirmButtonColor: "#dc3545"
                         });
+                        console.error('Error:', error);
+                    });
                 }
             });
         });
     });
+
+    // Allow Enter key to submit search
+    const searchInput = document.querySelector('#searchForm input[name="search"]');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('searchForm').submit();
+            }
+        });
+    }
 </script>
 
 <?php include '../footer.php'; ?>

@@ -3,7 +3,12 @@ perpus_sede/
 ├── config.php                 
 ├── index.php                  
 ├── dashboard.php              
-├── logout.php                 
+├── logout.php  
+├── register.php 
+├── header.php 
+├── perpustakaan.sql 
+├── favicon.ico 
+├── footer.php              
 │
 ├── admin/                     
 │   ├── admin_buku.php         
@@ -13,5 +18,3 @@ perpus_sede/
 ├── shared/                    
 │   ├── pinjam_buku.php        
 │   └── daftar_buku.php        
-│
-└── database.sql               

@@ -57,6 +57,8 @@ function isSubmenuActive($submenus) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($page_title) ?> - Perpustakaan</title>
+    <!-- SweetAlert2 CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * {
             margin: 0;
@@ -222,6 +224,9 @@ function isSubmenuActive($submenus) {
             text-decoration: none;
             border-radius: 4px;
             font-size: 13px;
+            cursor: pointer;
+            border: none;
+            display: inline-block;
         }
 
         .logout-btn:hover {
@@ -325,7 +330,7 @@ function isSubmenuActive($submenus) {
             <div class="user-info">
                 <span class="user-name">Halo, <?= htmlspecialchars($_SESSION['nama_lengkap'] ?? 'User') ?></span>
                 <span class="user-role"><?= ucfirst($_SESSION['role'] ?? '') ?></span>
-                <a href="<?= $base_path ?>logout.php" class="logout-btn">Logout</a>
+                <a href="javascript:void(0)" class="logout-btn" id="logoutBtn">Logout</a>
             </div>
         </div>
         <div class="content-container">
@@ -353,5 +358,43 @@ function isSubmenuActive($submenus) {
                 sidebar.classList.remove('active');
             }
         }
+    });
+
+    // SweetAlert2 Konfirmasi Logout
+    document.getElementById('logoutBtn')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        Swal.fire({
+            title: 'Konfirmasi Logout',
+            html: `<div style="text-align: left;">
+                       <p>Apakah Anda yakin ingin keluar dari sistem?</p>
+                       <p style="color: #666; font-size: 13px; margin-top: 10px;">
+                           <strong>Perhatian:</strong><br>
+                           Anda akan diarahkan ke halaman login.
+                       </p>
+                   </div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ff3333',
+            cancelButtonColor: '#6c757d',
+            cancelButtonText: 'Batal',
+            confirmButtonText: 'Ya, Keluar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Tampilkan loading
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Sedang mengarahkan ke halaman login',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                // Redirect ke logout.php
+                window.location.href = '<?= $base_path ?>logout.php';
+            }
+        });
     });
 </script>

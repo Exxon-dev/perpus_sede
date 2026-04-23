@@ -53,8 +53,8 @@ include 'header.php';
         padding: 25px;
         border-radius: 12px;
         text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: transform 0.3s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
     }
     .stat-card:hover {
         transform: translateY(-5px);
@@ -76,6 +76,7 @@ include 'header.php';
         padding: 30px;
         border-radius: 12px;
         margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     .info-grid {
         display: grid;
@@ -88,7 +89,12 @@ include 'header.php';
         padding: 20px;
         border-radius: 12px;
         text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+    .info-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     .info-icon {
         font-size: 40px;
@@ -98,6 +104,9 @@ include 'header.php';
         margin: 30px 0;
         border: none;
         border-top: 1px solid #e0e0e0;
+    }
+    .text-center {
+        text-align: center;
     }
 </style>
 
@@ -137,9 +146,9 @@ include 'header.php';
 <div class="info-grid">
     <div class="info-card">
         <div class="info-icon">📜</div>
-        <h3>Peraturan</h3>
-        <!-- <p>Maksimal pinjam 3 buku</p> -->
-        <p>Lama pinjam 7 hari</p>
+        <h3>Peraturan Peminjaman</h3>
+        <p>Lama pinjam maksimal 7 hari</p>
+        <p>Denda keterlambatan: Rp 1.000/hari</p>
     </div>
 </div>
 
@@ -148,12 +157,17 @@ include 'header.php';
 <!-- SweetAlert2 Script for Welcome Message -->
 <?php if($show_welcome_alert): ?>
 <script>
+    // Escape nama lengkap untuk JavaScript
+    const namaLengkap = <?= json_encode(htmlspecialchars($_SESSION['nama_lengkap'] ?? 'User')) ?>;
+    
     Swal.fire({
         position: "top-end",
         icon: "success",
-        title: "Selamat datang, <?= htmlspecialchars($_SESSION['nama_lengkap'] ?? 'User') ?>!",
+        title: "Selamat datang!",
+        text: `Halo, ${namaLengkap}`,
         showConfirmButton: false,
-        timer: 1500
+        timer: 1500,
+        toast: true
     });
 </script>
 <?php endif; ?>

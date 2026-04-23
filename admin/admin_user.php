@@ -26,7 +26,7 @@ if (isset($_GET['delete'])) {
     redirect('admin_user.php');
 }
 
-// Handle add - DIUBAH: menghapus hash, menyimpan password biasa
+// Handle add
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
@@ -64,10 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
 
     if (empty($errors)) {
         try {
-            // DIUBAH: Langsung simpan password asli tanpa hash
-            // Sebelumnya: $hashed_password = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (username, password, nama_lengkap, role) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$username, $password, $nama_lengkap, $role]); // Langsung pakai $password
+            $stmt->execute([$username, $password, $nama_lengkap, $role]);
             $_SESSION['swal_success'] = "User '$username' berhasil ditambahkan!";
         } catch (PDOException $e) {
             $_SESSION['swal_error'] = "Gagal menambahkan user: " . $e->getMessage();
@@ -78,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
     redirect('admin_user.php');
 }
 
-// Handle edit - DIUBAH: menghapus hash, menyimpan password biasa
+// Handle edit
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit'])) {
     $id = $_POST['id'];
     $nama_lengkap = trim($_POST['nama_lengkap']);
@@ -92,10 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit'])) {
             if (strlen($password) < 3) {
                 $_SESSION['swal_error'] = "Password minimal 3 karakter!";
             } else {
-                // DIUBAH: Langsung update password asli tanpa hash
-                // Sebelumnya: $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $pdo->prepare("UPDATE users SET nama_lengkap=?, role=?, password=? WHERE id=? AND role != 'admin'");
-                $stmt->execute([$nama_lengkap, $role, $password, $id]); // Langsung pakai $password
+                $stmt->execute([$nama_lengkap, $role, $password, $id]);
                 $_SESSION['swal_success'] = "User berhasil diupdate!";
             }
         } else {
@@ -155,10 +151,10 @@ include '../header.php';
     .btn {
         display: inline-block;
         padding: 8px 16px;
-        background: #333;
-        color: white;
+        background: #E1E8ED;
+        color: black;
         text-decoration: none;
-        border-radius: 6px;
+        border-radius: 4px;
         border: none;
         cursor: pointer;
         font-size: 14px;
@@ -166,8 +162,8 @@ include '../header.php';
     }
 
     .btn:hover {
-        opacity: 0.85;
-        transform: translateY(-1px);
+        background: #66757F;
+        color: white;
     }
 
     .btn-small {
@@ -216,17 +212,21 @@ include '../header.php';
     }
 
     .btn-cari {
-        background: #2c3e50;
+        background: #333;
         color: white;
     }
 
     .btn-cari:hover {
-        background: #1a252f;
+        background: #555;
     }
 
     .btn-reset {
         background: #6c757d;
         color: white;
+    }
+
+    .btn-reset:hover {
+        background: #5a6268;
     }
 
     .stats-grid {
@@ -241,13 +241,13 @@ include '../header.php';
         padding: 20px;
         border-radius: 12px;
         text-align: center;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: transform 0.3s;
     }
 
     .stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 
     .stat-number {
@@ -264,28 +264,27 @@ include '../header.php';
 
     .form-card {
         background: white;
-        padding: 25px;
-        border-radius: 12px;
+        padding: 20px;
+        border-radius: 8px;
         margin-bottom: 30px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .form-card h3 {
         margin-bottom: 20px;
         color: #333;
-        font-weight: normal;
         font-size: 18px;
         border-left: 4px solid #2c3e50;
         padding-left: 15px;
     }
 
     .form-group {
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
 
     label {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 5px;
         color: #555;
         font-weight: 500;
     }
@@ -293,11 +292,11 @@ include '../header.php';
     input,
     select {
         width: 100%;
-        padding: 10px;
+        padding: 8px;
         border: 1px solid #ddd;
-        border-radius: 6px;
+        border-radius: 4px;
         font-size: 14px;
-        transition: border-color 0.3s;
+        box-sizing: border-box;
     }
 
     input:focus,
@@ -321,6 +320,7 @@ include '../header.php';
         flex-wrap: wrap;
         gap: 15px;
         align-items: flex-end;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .filter-group {
@@ -348,14 +348,15 @@ include '../header.php';
     table {
         width: 100%;
         background: white;
-        border-radius: 12px;
+        border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        border-collapse: collapse;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     th,
     td {
-        padding: 14px;
+        padding: 12px;
         text-align: left;
         border-bottom: 1px solid #eee;
     }
@@ -393,6 +394,7 @@ include '../header.php';
         background: white;
         border-radius: 12px;
         color: #666;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .modal {
@@ -438,6 +440,21 @@ include '../header.php';
         margin-bottom: 15px;
         flex-wrap: wrap;
         gap: 10px;
+    }
+
+    .table-header h3 {
+        margin: 0;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    small {
+        display: block;
+        margin-top: 5px;
+        font-size: 11px;
+        color: #888;
     }
 
     @media (max-width: 768px) {
@@ -500,11 +517,6 @@ include '../header.php';
             border-bottom: none;
         }
     }
-
-    small {
-        display: block;
-        margin-top: 5px;
-    }
 </style>
 
 <!-- Statistics -->
@@ -529,18 +541,18 @@ include '../header.php';
     <form method="POST" id="addUserForm">
         <div class="form-row">
             <div class="form-group">
-                <label>Username</label>
+                <label>Username *</label>
                 <input type="text" name="username" placeholder="contoh: siswa_baru" required autocomplete="off">
-                <small style="color:#888; font-size:11px;">Minimal 3 karakter, hanya huruf, angka, underscore</small>
+                <small>Minimal 3 karakter, hanya huruf, angka, underscore</small>
             </div>
             <div class="form-group">
-                <label>Password</label>
+                <label>Password *</label>
                 <input type="password" name="password" placeholder="Minimal 3 karakter" required>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Nama Lengkap</label>
+                <label>Nama Lengkap *</label>
                 <input type="text" name="nama_lengkap" placeholder="Nama lengkap user" required>
             </div>
             <div class="form-group">
@@ -570,9 +582,9 @@ include '../header.php';
         <form method="GET" id="searchForm" style="display: flex; gap: 10px;">
             <input type="hidden" name="role" value="<?= $role_filter ?>">
             <input type="text" name="search" placeholder="Cari username atau nama..." value="<?= htmlspecialchars($search) ?>" style="flex: 1;">
-            <button type="submit" class="btn btn-cari btn-sm">Cari</button>
+            <button type="submit" class="btn btn-cari">Cari</button>
             <?php if ($search): ?>
-                <a href="?role=<?= $role_filter ?>" class="btn btn-reset btn-sm">Reset</a>
+                <a href="?role=<?= $role_filter ?>" class="btn btn-reset">Reset</a>
             <?php endif; ?>
         </form>
     </div>
@@ -592,12 +604,12 @@ include '../header.php';
         <table id="userTable">
             <thead>
                 <tr>
-                    <th style="text-align: center;">No</th>
-                    <th style="text-align: center;">Username</th>
-                    <th style="text-align: center;">Nama Lengkap</th>
-                    <th style="text-align: center;">Role</th>
-                    <th style="text-align: center;">Tanggal Daftar</th>
-                    <th style="text-align: center;">Aksi</th>
+                    <th class="text-center">No</th>
+                    <th>Username</th>
+                    <th>Nama Lengkap</th>
+                    <th class="text-center">Role</th>
+                    <th class="text-center">Tanggal Daftar</th>
+                    <th class="text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -606,16 +618,16 @@ include '../header.php';
                 foreach ($users as $u): 
                 ?>
                 <tr>
-                    <td style="text-align: center;"><?= $no++ ?></td>
+                    <td class="text-center" data-label="No"><?= $no++ ?></td>
                     <td data-label="Username"><?= htmlspecialchars($u['username']) ?></td>
                     <td data-label="Nama Lengkap"><?= htmlspecialchars($u['nama_lengkap']) ?></td>
-                    <td data-label="Role">
+                    <td class="text-center" data-label="Role">
                         <span class="badge badge-<?= $u['role'] ?>">
                             <?= $u['role'] == 'siswa' ? 'Siswa' : 'Admin' ?>
                         </span>
                     </td>
-                    <td data-label="Tanggal Daftar" style="text-align: center;"><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
-                    <td data-label="Aksi" style="text-align: center;">
+                    <td class="text-center" data-label="Tanggal Daftar"><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
+                    <td class="text-center" data-label="Aksi">
                         <button class="btn btn-small btn-edit" onclick="editUser(<?= htmlspecialchars(json_encode($u)) ?>)">Edit</button>
                         <button class="btn btn-small btn-delete" onclick="confirmDelete(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username']) ?>')">Hapus</button>
                     </td>
@@ -633,7 +645,7 @@ include '../header.php';
         <form method="POST" id="editUserForm">
             <input type="hidden" name="id" id="edit_id">
             <div class="form-group">
-                <label>Nama Lengkap</label>
+                <label>Nama Lengkap *</label>
                 <input type="text" name="nama_lengkap" id="edit_nama" required>
             </div>
             <div class="form-group">
@@ -646,7 +658,7 @@ include '../header.php';
             <div class="form-group">
                 <label>Password Baru</label>
                 <input type="password" name="password" placeholder="Kosongkan jika tidak diubah">
-                <small style="color:#888; font-size:11px;">Minimal 3 karakter jika diisi</small>
+                <small>Minimal 3 karakter jika diisi</small>
             </div>
             <div class="modal-buttons">
                 <button type="submit" name="edit" class="btn btn-update">Update</button>
@@ -658,28 +670,28 @@ include '../header.php';
 
 <!-- SweetAlert2 Scripts -->
 <?php if ($swal_success): ?>
-    <script>
-        Swal.fire({
-            position: "top",
-            icon: "success",
-            title: "<?= htmlspecialchars($swal_success) ?>",
-            showConfirmButton: false,
-            timer: 1500
-        });
-    </script>
+<script>
+    Swal.fire({
+        position: "top-end",
+        icon: "success",
+        title: "Berhasil!",
+        text: <?= json_encode($swal_success) ?>,
+        showConfirmButton: false,
+        timer: 1500,
+        toast: true
+    });
+</script>
 <?php endif; ?>
 
 <?php if ($swal_error): ?>
-    <script>
-        Swal.fire({
-            position: "top",
-            icon: "error",
-            title: "Gagal!",
-            html: "<?= htmlspecialchars($swal_error) ?>",
-            showConfirmButton: true,
-            confirmButtonColor: "#dc3545"
-        });
-    </script>
+<script>
+    Swal.fire({
+        icon: "error",
+        title: "Gagal!",
+        html: <?= json_encode($swal_error) ?>,
+        confirmButtonColor: "#dc3545"
+    });
+</script>
 <?php endif; ?>
 
 <script>
@@ -692,6 +704,8 @@ include '../header.php';
 
     function closeModal() {
         document.getElementById('editModal').style.display = 'none';
+        // Reset password field
+        document.querySelector('#editUserForm input[name="password"]').value = '';
     }
 
     function confirmDelete(id, username) {
@@ -706,6 +720,14 @@ include '../header.php';
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Sedang menghapus user',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
                 window.location.href = '?delete=' + id;
             }
         });
@@ -715,12 +737,60 @@ include '../header.php';
     window.onclick = function(event) {
         let modal = document.getElementById('editModal');
         if (event.target == modal) {
-            modal.style.display = 'none';
+            closeModal();
         }
     }
 
-    // Tampilkan loading saat submit form tambah user
-    document.getElementById('addUserForm')?.addEventListener('submit', function() {
+    // Form validation for add user
+    document.getElementById('addUserForm')?.addEventListener('submit', function(e) {
+        let username = document.querySelector('#addUserForm input[name="username"]').value.trim();
+        let password = document.querySelector('#addUserForm input[name="password"]').value;
+        let namaLengkap = document.querySelector('#addUserForm input[name="nama_lengkap"]').value.trim();
+        
+        if (username.length < 3) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Username minimal 3 karakter!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Username hanya boleh berisi huruf, angka, dan underscore!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
+        if (password.length < 3) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Password minimal 3 karakter!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
+        if (namaLengkap === '') {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Nama lengkap harus diisi!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
         Swal.fire({
             title: 'Menyimpan...',
             text: 'Mohon tunggu',
@@ -731,8 +801,33 @@ include '../header.php';
         });
     });
 
-    // Tampilkan loading saat submit form edit user
-    document.getElementById('editUserForm')?.addEventListener('submit', function() {
+    // Form validation for edit user
+    document.getElementById('editUserForm')?.addEventListener('submit', function(e) {
+        let namaLengkap = document.getElementById('edit_nama').value.trim();
+        let password = document.querySelector('#editUserForm input[name="password"]').value;
+        
+        if (namaLengkap === '') {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Nama lengkap harus diisi!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
+        if (password !== '' && password.length < 3) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                text: 'Password minimal 3 karakter!',
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+        
         Swal.fire({
             title: 'Mengupdate...',
             text: 'Mohon tunggu',
@@ -742,6 +837,16 @@ include '../header.php';
             }
         });
     });
+    
+    // Allow Enter key to submit search
+    const searchInput = document.querySelector('#searchForm input[name="search"]');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('searchForm').submit();
+            }
+        });
+    }
 </script>
 
 <?php include '../footer.php'; ?>
